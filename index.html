@@ -1,408 +1,1328 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>牛了个牛</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-            touch-action: manipulation;
-        }
-        
-        body {
-            background-color: #f8f5e6;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            background-image: url('https://picsum.photos/id/1058/1200/800');
-            background-size: cover;
-            background-position: center;
-            position: relative;
-            overflow-x: hidden;
-        }
-        
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(255, 255, 255, 0.9);
-            z-index: -1;
-        }
-        
-        .game-container {
-            width: 100%;
-            max-width: 500px;
-            padding: 15px;
-            position: relative;
-        }
-        
-        h1 {
-            text-align: center;
-            color: #c92a2a;
-            margin: 15px 0;
-            font-size: 1.8rem;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.1);
-        }
-        
-        .level-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 10px;
-            font-size: 1rem;
-            color: #5c5546;
-            gap: 5px;
-        }
-        
-        .game-area {
-            background-color: #fff;
-            border-radius: 12px;
-            padding: 15px;
-            height: 480px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            position: relative;
-            overflow: hidden;
-            background-image: url('https://picsum.photos/id/106/1200/800');
-            background-size: cover;
-            background-position: center;
-        }
-        
-        .card {
-            width: 65px;
-            height: 65px;
-            background-color: #fff;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 26px;
-            position: absolute;
-            cursor: pointer;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
-            transition: all 0.15s ease;
-            border: 2px solid #f1e9d2;
-            user-select: none;
-            z-index: 1;
-            overflow: hidden;
-        }
-        
-        .card::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255,255,255,0.1);
-        }
-        
-        .card.locked {
-            background-color: #d6c8a5;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        
-        .card.obstacle {
-            background-color: #8d7b58;
-            border-color: #6e5f41;
-        }
-        
-        .card:hover:not(.locked):not(.matched) {
-            transform: scale(1.08);
-            box-shadow: 0 5px 12px rgba(0,0,0,0.25);
-            z-index: 10;
-        }
-        
-        .card.selected {
-            border-color: #496a81;
-            background-color: #f0f7ff;
-        }
-        
-        .card.matched {
-            animation: matched 0.4s ease-out forwards;
-        }
-        
-        @keyframes matched {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3) rotate(10deg); opacity: 0.8; }
-            100% { transform: scale(0); opacity: 0; }
-        }
-        
-        /* 提示动画 */
-        .card.hint-animation {
-            animation: hint-pulse 0.5s ease-in-out infinite alternate;
-            border-color: #ff6b6b;
-            box-shadow: 0 0 15px rgba(255, 107, 107, 0.7);
-        }
-        
-        @keyframes hint-pulse {
-            from {
-                transform: scale(1);
-                background-color: #f0f7ff;
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>牛了个牛</title>
+        <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.prod.js"></script>
+        <style>
+            /* 全局样式 */
+            body {
+                margin: 0;
+                padding: 0;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                color: #333;
             }
-            to {
-                transform: scale(1.1);
-                background-color: #ffe0e0;
-            }
-        }
-        
-        /* 重排动画 */
-        .card.refreshing {
-            animation: refreshing 0.3s ease-in-out;
-            opacity: 0.8;
-        }
-        
-        @keyframes refreshing {
-            0% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(0.9) rotate(-5deg); }
-            100% { transform: scale(1) rotate(0deg); }
-        }
-        
-        /* 卡槽清空动画 */
-        .card-slot.slot-clearing {
-            animation: slot-clear 0.3s ease-in-out;
-            background-color: #f0e6d2;
-        }
-        
-        @keyframes slot-clear {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(0.98); }
-        }
-        
-        .card-slot {
-            display: flex;
-            gap: 6px;
-            padding: 12px;
-            background-color: #f8f1e0;
-            border-radius: 10px;
-            margin-top: 15px;
-            height: 80px;
-            overflow-x: auto;
-            box-shadow: inset 0 2px 6px rgba(0,0,0,0.1);
-            position: relative;
-        }
-        
-        .card-slot::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            background: linear-gradient(90deg, 
-                rgba(248,241,224,0) 0%, 
-                rgba(248,241,224,0) 45%, 
-                rgba(248,241,224,0.8) 100%);
-        }
-        
-        .slot-card {
-            width: 55px;
-            height: 55px;
-            background-color: #fff;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            flex-shrink: 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-            border: 2px solid #e6d9be;
-            position: relative;
-        }
-        
-        /* 移除叉号，改为通过点击整个卡片移除 */
-        .slot-card {
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .slot-card:hover {
-            transform: scale(1.05);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
-        }
-        
-        .controls {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 15px;
-            gap: 10px;
-        }
-        
-        button {
-            padding: 8px 18px;
-            background-color: #c92a2a;
-            color: white;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s ease;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
-            flex: 1;
-            max-width: 150px;
-        }
-        
-        button:hover {
-            background-color: #b32424;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 10px rgba(0,0,0,0.15);
-        }
-        
-        button.secondary {
-            background-color: #496a81;
-        }
-        
-        button.secondary:hover {
-            background-color: #3a586d;
-        }
-        
-        .message {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 30px 25px;
-            border-radius: 15px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-            text-align: center;
-            display: none;
-            z-index: 100;
-            width: 90%;
-            max-width: 400px;
-            border: 4px solid #f8d7da;
-        }
-        
-        .message.victory {
-            border-color: #d1e7dd;
-            background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
-        }
-        
-        .message h2 {
-            color: #c92a2a;
-            margin-bottom: 15px;
-            font-size: 1.8rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .message.victory h2 {
-            color: #2b8a3e;
-        }
-        
-        .message .emoji {
-            font-size: 2.5rem;
-            margin: 10px 0;
-        }
-        
-        .message p {
-            color: #5c5546;
-            margin-bottom: 20px;
-            line-height: 1.6;
-            font-size: 1.1rem;
-        }
-        
-        .message.victory p {
-            color: #2c3e50;
-        }
-        
-        .level-badge {
-            display: inline-block;
-            background-color: #ffc107;
-            color: #856404;
-            padding: 5px 15px;
-            border-radius: 20px;
-            margin: 10px 0;
-            font-weight: bold;
-        }
-        
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0,0,0,0.6);
-            display: none;
-            z-index: 99;
-        }
-        
-        .show {
-            display: block !important;
-        }
-        
-        .slot-full {
-            animation: slotFull 0.5s ease-in-out infinite alternate;
-        }
-        
-        @keyframes slotFull {
-            from { background-color: #f8f1e0; }
-            to { background-color: #fce8e6; }
-        }
-        
-        .level-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background-color: rgba(255,255,255,0.8);
-            padding: 3px 8px;
-            border-radius: 10px;
-            font-size: 0.8rem;
-            color: #c92a2a;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-    </style>
-</head>
-<body>
-    <div class="game-container">
-        <h1>牛了个牛</h1>
-        
-        <div class="level-info">
-            <div>关卡: <span id="level">1</span></div>
-            <div>剩余: <span id="remaining">0</span></div>
-        </div>
-        
-        <div class="game-area" id="gameArea">
-            <div class="level-indicator">第<span id="levelDisplay">1</span>关</div>
-            <!-- 卡片会动态生成在这里 -->
-        </div>
-        
-        <div class="card-slot" id="cardSlot">
-            <!-- 选中的卡片会显示在这里 -->
-        </div>
-        
-        <div class="controls">
-            <button id="restartBtn">重新开始</button>
-            <button class="secondary" id="hintBtn">提示</button>
-            <button class="secondary" id="refreshBtn">重排</button>
-        </div>
-    </div>
-    
-    <div class="overlay" id="overlay"></div>
-    <div class="message" id="defeatMessage">
-        <h2>😢 失败</h2>
-        <p>请从新开始</p>
-        <button id="defeatBtn">再来一局</button>
-    </div>
-    <div class="message victory" id="victoryMessage">
-        <h2>🏆 通关成功</h2>
-        <div class="emoji">🎉</div>
-        <div class="level-badge">已完成第 <span id="completedLevel">1</span> 关</div>
-        <p id="encourageText">太厉害了！下一关等你来挑战！</p>
-        <button id="victoryBtn">继续挑战</button>
-    </div>
 
-    <script src="game.js"></script>
-</body>
+            /* 游戏容器 */
+            .game-container {
+                background: white;
+                border-radius: 20px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                padding: 20px;
+                max-width: 800px;
+                width: 90%;
+                position: relative;
+            }
+
+            /* 游戏标题 */
+            h1 {
+                text-align: center;
+                color: #667eea;
+                margin-bottom: 20px;
+                font-size: 36px;
+            }
+
+            /* 关卡信息 */
+            .level-info {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 20px;
+                font-size: 18px;
+                font-weight: bold;
+            }
+
+            /* 游戏区域 */
+            .game-area {
+                width: 100%;
+                height: 400px;
+                background: #f8f9fa;
+                border-radius: 15px;
+                position: relative;
+                overflow: hidden;
+                margin-bottom: 20px;
+                border: 2px solid #e9ecef;
+            }
+
+            /* 关卡指示器 */
+            .level-indicator {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                background: rgba(102, 126, 234, 0.9);
+                color: white;
+                padding: 5px 15px;
+                border-radius: 20px;
+                font-weight: bold;
+            }
+
+            /* 卡片样式 */
+            .card {
+                width: 65px;
+                height: 85px;
+                background: white;
+                border-radius: 10px;
+                position: absolute;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 32px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                border: 2px solid #ddd;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            .card:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            }
+
+            .card.locked {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .card.matched {
+                opacity: 0;
+                transform: scale(0.8) rotate(180deg);
+            }
+
+            .card.selected {
+                transform: scale(1.1);
+                border-color: #667eea;
+                box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+            }
+
+            .card.hint-animation {
+                animation: hint-pulse 0.5s infinite alternate;
+                border-color: #ffc107;
+            }
+
+            @keyframes hint-pulse {
+                from { transform: scale(1); }
+                to { transform: scale(1.1); }
+            }
+
+            .card.refreshing {
+                animation: refresh-spin 0.5s ease-in-out;
+            }
+
+            @keyframes refresh-spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            .card.max-clicks {
+                border-color: #dc3545;
+                background: #f8d7da;
+            }
+
+            .card.clicked-once {
+                border-color: #fd7e14;
+            }
+
+            /* 点击次数 */
+            .click-count {
+                position: absolute;
+                bottom: 2px;
+                right: 4px;
+                font-size: 10px;
+                background: rgba(0, 0, 0, 0.6);
+                color: white;
+                padding: 2px 4px;
+                border-radius: 4px;
+            }
+
+            /* 卡槽 */
+            .card-slot {
+                width: 100%;
+                height: 100px;
+                background: #e9ecef;
+                border-radius: 15px;
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                padding: 10px;
+                margin-bottom: 20px;
+                position: relative;
+                transition: all 0.3s ease;
+            }
+
+            .card-slot.slot-full {
+                background: #f8d7da;
+                border-color: #dc3545;
+                animation: slot-full-pulse 0.5s infinite alternate;
+            }
+
+            .card-slot.slot-clearing {
+                animation: slot-clear 0.3s ease-out;
+            }
+
+            @keyframes slot-full-pulse {
+                from { background: #e9ecef; }
+                to { background: #f8d7da; }
+            }
+
+            @keyframes slot-clear {
+                0% { background: #e9ecef; }
+                50% { background: #d4edda; }
+                100% { background: #e9ecef; }
+            }
+
+            /* 卡槽卡片 */
+            .slot-card {
+                width: 60px;
+                height: 80px;
+                background: white;
+                border-radius: 8px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 28px;
+                cursor: pointer;
+                border: 2px solid #667eea;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                transition: all 0.2s ease;
+            }
+
+            .slot-card:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            }
+
+            /* 控制按钮 */
+            .controls {
+                display: flex;
+                justify-content: space-around;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .controls button {
+                flex: 1;
+                padding: 12px 20px;
+                font-size: 16px;
+                font-weight: bold;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .controls button:hover:not(:disabled) {
+                background: #5a67d8;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            }
+
+            .controls button:disabled {
+                background: #6c757d;
+                cursor: not-allowed;
+                opacity: 0.6;
+            }
+
+            .controls button.secondary {
+                background: #17a2b8;
+            }
+
+            .controls button.secondary:hover:not(:disabled) {
+                background: #138496;
+            }
+
+            /* 音乐控制按钮 */
+            .music-control-btn {
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: #667eea;
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 20px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                transition: all 0.3s ease;
+            }
+
+            .music-control-btn:hover {
+                background: #5a67d8;
+                transform: scale(1.1);
+            }
+
+            /* 最高分显示 */
+            .high-score,
+            .global-high-score {
+                text-align: center;
+                font-size: 16px;
+                margin-bottom: 10px;
+                font-weight: bold;
+            }
+
+            /* 覆盖层 */
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+
+            /* 消息弹窗 */
+            .message {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                border-radius: 20px;
+                padding: 40px;
+                text-align: center;
+                z-index: 1001;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                min-width: 300px;
+            }
+
+            .message h2 {
+                color: #667eea;
+                margin-bottom: 20px;
+                font-size: 32px;
+            }
+
+            .message p {
+                margin-bottom: 30px;
+                font-size: 18px;
+                color: #6c757d;
+            }
+
+            .message button {
+                padding: 12px 30px;
+                font-size: 18px;
+                font-weight: bold;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .message button:hover {
+                background: #5a67d8;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            }
+
+            .message.victory h2 {
+                color: #28a745;
+            }
+
+            /* 表情符号 */
+            .emoji {
+                font-size: 64px;
+                margin: 20px 0;
+            }
+
+            /* 关卡徽章 */
+            .level-badge {
+                background: #ffc107;
+                color: #212529;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-weight: bold;
+                margin-bottom: 20px;
+                display: inline-block;
+            }
+
+            /* 新纪录消息 */
+            .new-record {
+                position: fixed;
+                top: 20%;
+                left: 50%;
+                transform: translateX(-50%);
+                padding: 20px 40px;
+                border-radius: 15px;
+                color: white;
+                font-size: 24px;
+                font-weight: bold;
+                text-align: center;
+                z-index: 1002;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                animation: record-popup 0.5s ease-out;
+            }
+
+            @keyframes record-popup {
+                from {
+                    opacity: 0;
+                    transform: translate(-50%, -50%);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(-50%);
+                }
+            }
+
+            /* 游戏消息 */
+            .game-message {
+                position: fixed;
+                top: 50px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 25px;
+                font-size: 18px;
+                z-index: 1001;
+                transition: opacity 0.3s ease;
+            }
+
+            /* 游戏规则弹窗 */
+            .rules-modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1003;
+            }
+
+            .rules-content {
+                background: white;
+                border-radius: 20px;
+                padding: 40px;
+                max-width: 600px;
+                width: 90%;
+                max-height: 80vh;
+                overflow-y: auto;
+                text-align: center;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            }
+
+            .rules-content h2 {
+                color: #667eea;
+                margin-bottom: 30px;
+                font-size: 28px;
+            }
+
+            .rules-content ul {
+                text-align: left;
+                margin-bottom: 30px;
+                padding-left: 20px;
+            }
+
+            .rules-content li {
+                margin-bottom: 15px;
+                font-size: 16px;
+                line-height: 1.6;
+                color: #495057;
+            }
+
+            .rules-content button {
+                padding: 12px 30px;
+                font-size: 18px;
+                font-weight: bold;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+
+            .rules-content button:hover {
+                background: #5a67d8;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app"></div>
+
+        <script>
+            const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue
+
+            const app = createApp({
+                setup() {
+                    // 游戏配置
+                    const config = {
+                        slots: 7,
+                        baseLayers: 3,
+                        increaseLayersPerLevel: 1,
+                        baseCardsPerLayer: 12,
+                        obstacleRate: 0.2,
+                        cardTypes: [
+                            '🐑', '🌾', '🌱', '🌼', '🌳', '☀️', 
+                            '🌙', '⭐', '💧', '🔥', '🌵', '🍄',
+                            '🐔', '🐄', '🥕', '🌽', '🍃', '🌹'
+                        ],
+                        obstacleTypes: ['🪨', '🌑', '⛰️'],
+                        encouragements: [
+                            "太牛了！这关对你来说简直小菜一碟！",
+                            "高手啊！你的观察力也太敏锐了吧！",
+                            "完全是消除大师！下一关准备好迎接挑战了吗？",
+                            "太厉害了！每一关都能轻松拿下，佩服佩服！",
+                            "节奏掌握得刚刚好，继续保持这个状态！",
+                            "没想到这么快就通关了，你是不是偷偷练过？",
+                            "这操作太丝滑了！期待你下一关的表现！",
+                            "不愧是你！难度升级也挡不住你的脚步！",
+                            "太精彩了！每一步都恰到好处，完美！",
+                            "已经开始期待你能闯到多少关了，加油！"
+                        ],
+                        newRecordEncouragements: [
+                            "🎉 新纪录！你是游戏之王！🎉",
+                            "🏆 历史最佳！难以置信的表现！🏆",
+                            "🌟 突破极限！你创造了新的高度！🌟",
+                            "🔥 传奇诞生！这个纪录会被铭记！🔥",
+                            "💪 太强了！你已经超越了自己！💪",
+                            "👏 不可思议！这是历史性的时刻！👏",
+                            "⭐ 星光闪耀！你是真正的冠军！⭐",
+                            "🎊 记录刷新！你是游戏的统治者！🎊",
+                            "🎯 完美表现！新的纪录属于你！🎯",
+                            "✨ 你做到了！历史新高！未来可期！✨"
+                        ],
+                        gameRules: [
+                            "1. 点击卡片将其放入下方卡槽",
+                            "2. 当卡槽中有3张相同图案的卡片时，它们将被自动消除",
+                            "3. 每张卡片最多只能被点击1次",
+                            "4. 消除所有卡片即可通关",
+                            "5. 卡槽最多可容纳7张卡片，满了则无法继续选择",
+                            "6. 每关有2次重排机会，可以重新排列顶层卡片",
+                            "7. 每关有2次移除机会，可以移除卡槽中的所有卡片",
+                            "8. 卡住时可以使用提示功能寻找可匹配的卡片"
+                        ],
+                        music: {
+                            bgmPath: './haijiduoduokai.mp3',
+                            volume: 0.5
+                        }
+                    }
+
+                    // 游戏状态
+                    const gameState = reactive({
+                        level: 1,
+                        layers: [],
+                        slots: [],
+                        remainingCards: 0,
+                        totalCards: 0,
+                        isProcessing: false,
+                        refreshCount: 2,
+                        removeCount: 2,
+                        personalHighScore: 0,
+                        globalHighScore: 0
+                    })
+
+                    // 组件状态
+                    const gameArea = ref(null)
+                    const showOverlay = ref(false)
+                    const showDefeatMessage = ref(false)
+                    const showVictoryMessage = ref(false)
+                    const showNewRecord = ref(false)
+                    const newRecordMessage = ref('')
+                    const newRecordStyle = ref({})
+                    const tempMessage = ref('')
+                    const tempMessageOpacity = ref(0)
+                    const showRules = ref(true)
+                    const isSlotFull = ref(false)
+                    const isSlotClearing = ref(false)
+                    const encourageText = ref('')
+                    const victoryEmoji = ref('🎉')
+                    const isMusicPlaying = ref(false)
+                    let audio = null
+
+                    // 计算属性
+                    const allCards = computed(() => {
+                        const cards = []
+                        gameState.layers.forEach(layer => {
+                            layer.forEach(card => {
+                                if (!card.matched && !card.selected) {
+                                    cards.push(card)
+                                }
+                            })
+                        })
+                        return cards
+                    })
+
+                    // 初始化音乐
+                    const initMusic = () => {
+                        try {
+                            audio = new Audio()
+                            // 使用正确的相对路径
+                            audio.src = './haijiduoduokai.mp3'
+                            audio.volume = config.music.volume || 0.5
+                            audio.loop = true
+                            audio.paused = true
+                        } catch (e) {
+                            console.warn('初始化背景音乐失败:', e)
+                        }
+                    }
+
+                    // 切换音乐播放状态
+                    const toggleMusic = () => {
+                        if (!audio) {
+                            initMusic()
+                            return
+                        }
+
+                        try {
+                            if (audio.paused) {
+                                // 先设置src确保音乐已加载
+                                if (!audio.src || audio.src.includes('haijiduoduokai.mp3')) {
+                                    audio.src = './haijiduoduokai.mp3'; // 使用相对路径
+                                }
+                                audio.play().then(() => {
+                                    isMusicPlaying.value = true
+                                }).catch(error => {
+                                    console.warn('音乐播放失败:', error)
+                                })
+                            } else {
+                                audio.pause()
+                                isMusicPlaying.value = false
+                            }
+                        } catch (e) {
+                            console.warn('切换音乐状态失败:', e)
+                        }
+                    }
+
+                    // 获取个人最高分
+                    const getPersonalHighScore = () => {
+                        try {
+                            const savedScore = localStorage.getItem('niulegeniu_highscore')
+                            return savedScore ? parseInt(savedScore, 10) : 0
+                        } catch (e) {
+                            console.warn('无法获取个人最高分记录:', e)
+                            return 0
+                        }
+                    }
+
+                    // 更新个人最高分
+                    const updatePersonalHighScore = (score) => {
+                        try {
+                            localStorage.setItem('niulegeniu_highscore', score.toString())
+                            gameState.personalHighScore = score
+                        } catch (e) {
+                            console.warn('无法保存个人最高分记录:', e)
+                        }
+                    }
+
+                    // 获取全网最高分
+                    const getGlobalHighScore = async () => {
+                        try {
+                            // 模拟获取全球最高分
+                            return 10 // 默认值
+                        } catch (e) {
+                            console.warn('无法获取全网最高分记录:', e)
+                            return 0
+                        }
+                    }
+
+                    // 显示临时消息
+                    const showTemporaryMessage = (message, duration = 2000) => {
+                        tempMessage.value = message
+                        tempMessageOpacity.value = 1
+
+                        setTimeout(() => {
+                            tempMessageOpacity.value = 0
+                            setTimeout(() => {
+                                tempMessage.value = ''
+                            }, 300)
+                        }, duration)
+                    }
+
+                    // 显示新纪录消息
+                    const showNewRecordMessage = (isGlobalRecord = false) => {
+                        if (isGlobalRecord) {
+                            newRecordMessage.value = '当前全网第一人！'
+                            newRecordStyle.value = {
+                                background: 'linear-gradient(45deg, #FFD700, #FFA500)',
+                                fontSize: '28px'
+                            }
+                        } else {
+                            const randomEncourage = config.newRecordEncouragements[
+                                Math.floor(Math.random() * config.newRecordEncouragements.length)
+                            ]
+                            newRecordMessage.value = randomEncourage
+                            newRecordStyle.value = {
+                                background: 'linear-gradient(45deg, #FFD700, #FFA500)',
+                                fontSize: '24px'
+                            }
+                        }
+
+                        showNewRecord.value = true
+
+                        setTimeout(() => {
+                            showNewRecord.value = false
+                        }, 3000)
+                    }
+
+                    // 生成多层卡片
+                    const generateLayers = () => {
+                        gameState.layers = []
+                        gameState.remainingCards = 0
+                        gameState.totalCards = 0
+
+                        const totalLayers = config.baseLayers + (gameState.level - 1) * config.increaseLayersPerLevel
+                        const cardAreaWidth = gameArea.value.clientWidth - 40
+                        const cardAreaHeight = gameArea.value.clientHeight - 40
+                        const cardSize = 65
+
+                        for (let layer = 0; layer < totalLayers; layer++) {
+                            const layerCards = []
+                            const layerSizeRatio = 1 - (layer / totalLayers) * 0.5
+                            const layerWidth = cardAreaWidth * layerSizeRatio
+                            const layerHeight = cardAreaHeight * layerSizeRatio
+                            const startX = (cardAreaWidth - layerWidth) / 2 + 20
+                            const startY = (cardAreaHeight - layerHeight) / 2 + 20
+
+                            const cardsInLayer = config.baseCardsPerLayer + layer * 4 + (gameState.level - 1) * 2
+
+                            const typesCount = Math.ceil(cardsInLayer / 3)
+                            const shuffledTypes = [...config.cardTypes].sort(() => 0.5 - Math.random())
+                            const selectedTypes = shuffledTypes.slice(0, typesCount)
+
+                            let typeIndex = 0
+                            let typeCounter = 0
+
+                            for (let i = 0; i < cardsInLayer; i++) {
+                                const x = startX + Math.floor(Math.random() * (layerWidth - cardSize))
+                                const y = startY + Math.floor(Math.random() * (layerHeight - cardSize))
+
+                                const adjustedObstacleRate = Math.min(
+                                    config.obstacleRate + (gameState.level - 1) * 0.03,
+                                    0.4
+                                )
+                                const isObstacle = Math.random() < adjustedObstacleRate && layer < totalLayers - 1
+
+                                let cardType
+                                if (isObstacle) {
+                                    cardType = config.obstacleTypes[Math.floor(Math.random() * config.obstacleTypes.length)]
+                                } else {
+                                    cardType = selectedTypes[typeIndex]
+                                    typeCounter++
+                                    if (typeCounter >= 3) {
+                                        typeIndex = (typeIndex + 1) % selectedTypes.length
+                                        typeCounter = 0
+                                    }
+                                    gameState.remainingCards++
+                                    gameState.totalCards++
+                                }
+
+                                layerCards.push({
+                                    id: `card-${layer}-${i}`,
+                                    type: cardType,
+                                    layer: layer,
+                                    x: x,
+                                    y: y,
+                                    matched: false,
+                                    selected: false,
+                                    isObstacle: isObstacle,
+                                    isLocked: layer < totalLayers - 1,
+                                    isHinted: false,
+                                    isRefreshing: false,
+
+                                })
+                            }
+
+                            gameState.layers.push(layerCards)
+                        }
+
+                        updateTopLayerLockStatus()
+                    }
+
+                    // 检查卡片是否被覆盖
+                    const isCardUncovered = (layer, index) => {
+                        const card = gameState.layers[layer][index]
+                        const cardSize = 65
+                        const cardHalf = cardSize / 2
+                        const cardCenterX = card.x + cardHalf
+                        const cardCenterY = card.y + cardHalf
+
+                        for (let upperLayer = layer + 1; upperLayer < gameState.layers.length; upperLayer++) {
+                            const upperCards = gameState.layers[upperLayer]
+
+                            for (const upperCard of upperCards) {
+                                if (!upperCard.matched && !upperCard.selected) {
+                                    const upperCenterX = upperCard.x + cardHalf
+                                    const upperCenterY = upperCard.y + cardHalf
+                                    const distance = Math.hypot(cardCenterX - upperCenterX, cardCenterY - upperCenterY)
+
+                                    if (distance < cardHalf * 0.8) {
+                                        return false
+                                    }
+                                }
+                            }
+                        }
+
+                        return true
+                    }
+
+                    // 更新顶层卡片锁定状态
+                    const updateTopLayerLockStatus = () => {
+                        const totalLayers = gameState.layers.length
+
+                        for (let layer = totalLayers - 1; layer >= 0; layer--) {
+                            const currentLayer = gameState.layers[layer]
+                            const isTopLayer = layer === totalLayers - 1
+
+                            currentLayer.forEach((card, index) => {
+                                if (isTopLayer || isCardUncovered(layer, index)) {
+                                    card.isLocked = false
+                                } else {
+                                    card.isLocked = true
+                                }
+                            })
+                        }
+                    }
+
+                    // 处理卡片点击
+                    const handleCardClick = (card) => {
+                        if (gameState.isProcessing) return
+                        if (card.matched || card.isLocked) return
+
+                        if (gameState.slots.length >= config.slots) {
+                            isSlotFull.value = true
+                            setTimeout(() => {
+                                isSlotFull.value = false
+                            }, 1000)
+                            return
+                        }
+
+
+                        card.selected = true
+
+                        // 添加到卡槽
+                        gameState.slots.push({ ...card, layer: card.layer, index: gameState.layers[card.layer].findIndex(c => c.id === card.id) })
+
+                        // 检查是否可以消除
+                        checkForMatch()
+                    }
+
+                    // 从卡槽移除卡片
+                    const handleRemoveFromSlot = (slotIndex) => {
+                        if (gameState.isProcessing) return
+
+                        const card = gameState.slots[slotIndex]
+                        gameState.slots.splice(slotIndex, 1)
+
+                        // 重新显示卡片
+                        const originalCard = gameState.layers[card.layer].find(c => c.id === card.id)
+                        if (originalCard) {
+                            originalCard.selected = false
+                        }
+
+                        updateTopLayerLockStatus()
+                    }
+
+                    // 检查是否可以匹配
+                    const checkForMatch = () => {
+                        if (gameState.slots.length < 3) return
+
+                        const typeCounts = {}
+                        gameState.slots.forEach(card => {
+                            typeCounts[card.type] = (typeCounts[card.type] || 0) + 1
+                        })
+
+                        let matchType = null
+                        for (const type in typeCounts) {
+                            if (typeCounts[type] >= 3) {
+                                matchType = type
+                                break
+                            }
+                        }
+
+                        if (matchType) {
+                            const matchIndices = gameState.slots
+                                .map((card, index) => ({ ...card, slotIndex: index }))
+                                .filter(card => card.type === matchType)
+                                .slice(0, 3)
+
+                            eliminateCards(matchIndices)
+                        }
+                    }
+
+                    // 消除卡片
+                    const eliminateCards = (matchIndices) => {
+                        gameState.isProcessing = true
+
+                        matchIndices.forEach(item => {
+                            const card = gameState.layers[item.layer][item.index]
+                            card.matched = true
+                            card.selected = false
+                        })
+
+                        const slotIndicesToRemove = matchIndices.map(item => item.slotIndex).sort((a, b) => b - a)
+                        slotIndicesToRemove.forEach(index => {
+                            gameState.slots.splice(index, 1)
+                        })
+
+                        gameState.remainingCards -= 3
+
+                        setTimeout(() => {
+                            updateTopLayerLockStatus()
+                            gameState.isProcessing = false
+                            checkGameStatus()
+                        }, 400)
+                    }
+
+                    // 检查游戏状态
+                    const checkGameStatus = () => {
+                        if (gameState.remainingCards <= 0) {
+                            setTimeout(() => {
+                                showVictoryMessageFunc()
+                            }, 500)
+                            return
+                        }
+
+                        if (gameState.slots.length >= config.slots && !canEliminateAny() && !hasUnlockedCards()) {
+                            showDefeatMessageFunc()
+                        }
+                    }
+
+                    // 检查是否有可消除的卡片
+                    const canEliminateAny = () => {
+                        const typeCounts = {}
+                        gameState.slots.forEach(card => {
+                            typeCounts[card.type] = (typeCounts[card.type] || 0) + 1
+                        })
+
+                        for (const type in typeCounts) {
+                            if (typeCounts[type] >= 3) {
+                                return true
+                            }
+                        }
+                        return false
+                    }
+
+                    // 检查是否有未锁定的卡片
+                    const hasUnlockedCards = () => {
+                        const totalLayers = gameState.layers.length
+
+                        for (let layer = 0; layer < totalLayers; layer++) {
+                            const currentLayer = gameState.layers[layer]
+
+                            for (let index = 0; index < currentLayer.length; index++) {
+                                const card = currentLayer[index]
+                                if (!card.matched && !card.selected) {
+                                    if (layer === totalLayers - 1 || isCardUncovered(layer, index)) {
+                                        return true
+                                    }
+                                }
+                            }
+                        }
+                        return false
+                    }
+
+                    // 显示胜利消息
+                    const showVictoryMessageFunc = () => {
+                        let isNewPersonalRecord = false
+
+                        if (gameState.level > gameState.personalHighScore) {
+                            updatePersonalHighScore(gameState.level)
+                            isNewPersonalRecord = true
+                        }
+
+                        let randomEncourage
+                        if (isNewPersonalRecord) {
+                            randomEncourage = config.newRecordEncouragements[
+                                Math.floor(Math.random() * config.newRecordEncouragements.length)
+                            ]
+                        } else {
+                            randomEncourage = config.encouragements[
+                                Math.floor(Math.random() * config.encouragements.length)
+                            ]
+                        }
+
+                        encourageText.value = randomEncourage
+                        
+                        if (isNewPersonalRecord) {
+                            encourageText.value += ' <span style="color: gold; font-weight: bold;">(个人新纪录！)</span>'
+                        }
+
+                        const victoryEmojis = ['🎉', '🏆', '🌟', '🥳', '👏', '💪']
+                        victoryEmoji.value = victoryEmojis[Math.floor(Math.random() * victoryEmojis.length)]
+
+                        if (isNewPersonalRecord) {
+                            showNewRecordMessage(false)
+                        }
+
+                        showOverlay.value = true
+                        showVictoryMessage.value = true
+                    }
+
+                    // 显示失败消息
+                    const showDefeatMessageFunc = () => {
+                        showOverlay.value = true
+                        showDefeatMessage.value = true
+                    }
+
+                    // 重新开始游戏
+                    const handleRestart = () => {
+                        gameState.level = 1
+                        initGame()
+                    }
+
+                    // 进入下一关
+                    const handleNextLevel = () => {
+                        gameState.level++
+                        initGame()
+                    }
+
+                    // 显示提示
+                    const handleHint = () => {
+                        if (gameState.isProcessing) return
+
+                        const allUnlockedCards = []
+
+                        gameState.layers.forEach((layer, layerIndex) => {
+                            layer.forEach((card, cardIndex) => {
+                                if (!card.matched && !card.selected && !card.isLocked) {
+                                    allUnlockedCards.push({ ...card, layer: layerIndex, index: cardIndex })
+                                }
+                            })
+                        })
+
+                        const groups = {}
+                        allUnlockedCards.forEach(card => {
+                            if (!groups[card.type]) {
+                                groups[card.type] = []
+                            }
+                            groups[card.type].push(card)
+                        })
+
+                        let hintGroup = null
+                        for (const type in groups) {
+                            if (groups[type].length >= 3) {
+                                hintGroup = groups[type]
+                                break
+                            }
+                        }
+
+                        if (hintGroup) {
+                            const hintedCards = hintGroup.slice(0, 3)
+
+                            hintedCards.forEach(card => {
+                                const originalCard = gameState.layers[card.layer][card.index]
+                                if (originalCard) {
+                                    originalCard.isHinted = true
+                                }
+                            })
+
+                            setTimeout(() => {
+                                hintedCards.forEach(card => {
+                                    const originalCard = gameState.layers[card.layer][card.index]
+                                    if (originalCard) {
+                                        originalCard.isHinted = false
+                                    }
+                                })
+                            }, 3000)
+
+                            showTemporaryMessage('已标记可匹配的卡片')
+                        } else {
+                            showTemporaryMessage('没有可匹配的卡片组合，尝试重排或移除卡槽卡片')
+                        }
+                    }
+
+                    // 重排卡片
+                    const handleRefresh = () => {
+                        if (gameState.isProcessing || gameState.refreshCount <= 0) return
+
+                        gameState.refreshCount--
+
+                        const topLayerIndex = gameState.layers.length - 1
+                        const topLayer = gameState.layers[topLayerIndex]
+                        const unlockedCards = topLayer.filter(card => !card.matched && !card.selected && !card.isLocked && !card.isObstacle)
+
+                        if (unlockedCards.length <= 1) {
+                            showTemporaryMessage('卡片太少，无法重排')
+                            return
+                        }
+
+                        unlockedCards.forEach(card => {
+                            card.isRefreshing = true
+                        })
+
+                        setTimeout(() => {
+                            const cardAreaWidth = gameArea.value.clientWidth - 40
+                            const cardAreaHeight = gameArea.value.clientHeight - 40
+                            const cardSize = 65
+                            const spacing = 10
+
+                            const hasCollision = (newX, newY, cardIndex, positions) => {
+                                const minDistance = cardSize + spacing
+                                for (let i = 0; i < cardIndex; i++) {
+                                    const dx = newX - positions[i].x
+                                    const dy = newY - positions[i].y
+                                    const distance = Math.sqrt(dx * dx + dy * dy)
+                                    if (distance < minDistance) {
+                                        return true
+                                    }
+                                }
+                                return false
+                            }
+
+                            const positions = []
+                            unlockedCards.forEach((card, index) => {
+                                let attempts = 0
+                                const maxAttempts = 50
+                                let newX, newY
+
+                                do {
+                                    newX = 20 + Math.floor(Math.random() * (cardAreaWidth - cardSize))
+                                    newY = 20 + Math.floor(Math.random() * (cardAreaHeight - cardSize))
+                                    attempts++
+                                } while (attempts < maxAttempts && hasCollision(newX, newY, index, positions))
+
+                                card.x = newX
+                                card.y = newY
+                                positions.push({ x: newX, y: newY })
+                                card.isRefreshing = false
+                            })
+
+                            showTemporaryMessage('卡片已重排')
+                        }, 300)
+                    }
+
+                    // 移除所有卡槽卡片
+                    const handleRemoveAll = () => {
+                        if (gameState.isProcessing || gameState.removeCount <= 0 || gameState.slots.length === 0) {
+                            if (gameState.slots.length === 0 && gameState.removeCount > 0) {
+                                showTemporaryMessage('卡槽为空，无需移除')
+                            }
+                            return
+                        }
+
+                        isSlotClearing.value = true
+                        gameState.removeCount--
+
+                        const cardsToRender = [...gameState.slots]
+                        gameState.slots = []
+
+                        cardsToRender.forEach(card => {
+                            const originalCard = gameState.layers[card.layer].find(c => c.id === card.id)
+                            if (originalCard) {
+                                originalCard.selected = false
+                            }
+                        })
+
+                        updateTopLayerLockStatus()
+                        showTemporaryMessage('已移除所有卡槽卡片')
+
+                        setTimeout(() => {
+                            isSlotClearing.value = false
+                        }, 300)
+                    }
+
+                    // 关闭规则弹窗
+                    const closeRules = (event) => {
+                        // 只有当点击的是弹窗背景时才关闭，或者没有event参数直接关闭
+                        if (!event || event.target.classList.contains('rules-modal')) {
+                            showRules.value = false
+                        }
+                    }
+
+                    // 开始游戏
+                    const startGame = () => {
+                        closeRules()
+                        initGame()
+                    }
+
+                    // 初始化游戏
+                    const initGame = () => {
+                        gameState.layers = []
+                        gameState.slots = []
+                        gameState.remainingCards = 0
+                        gameState.totalCards = 0
+                        gameState.isProcessing = false
+                        gameState.refreshCount = 2
+                        gameState.removeCount = 2
+
+                        showOverlay.value = false
+                        showDefeatMessage.value = false
+                        showVictoryMessage.value = false
+                        isSlotFull.value = false
+
+                        nextTick(() => {
+                            generateLayers()
+                        })
+                    }
+
+                    // 组件挂载时初始化
+                    onMounted(() => {
+                        initMusic()
+                        gameState.personalHighScore = getPersonalHighScore()
+                        gameState.globalHighScore = 10 // 设置默认值
+                    })
+
+                    return {
+                        config,
+                        gameState,
+                        gameArea,
+                        showOverlay,
+                        showDefeatMessage,
+                        showVictoryMessage,
+                        showNewRecord,
+                        newRecordMessage,
+                        newRecordStyle,
+                        tempMessage,
+                        tempMessageOpacity,
+                        showRules,
+                        isSlotFull,
+                        isSlotClearing,
+                        encourageText,
+                        victoryEmoji,
+                        isMusicPlaying,
+                        allCards,
+                        handleCardClick,
+                        handleRemoveFromSlot,
+                        handleRestart,
+                        handleNextLevel,
+                        handleHint,
+                        handleRefresh,
+                        handleRemoveAll,
+                        toggleMusic,
+                        closeRules,
+                        startGame
+                    }
+                },
+                template: `
+                    <div class="game-container">
+                        <h1>牛了个牛</h1>
+                        
+                        <div class="level-info">
+                            <div>关卡: {{ gameState.level }}</div>
+                            <div>剩余: {{ gameState.remainingCards }}</div>
+                        </div>
+                        
+                        <div class="game-area" ref="gameArea">
+                            <div class="level-indicator">第{{ gameState.level }}关</div>
+                            <!-- 卡片渲染 -->
+                            <div
+                                v-for="(card, index) in allCards"
+                                :key="card.id"
+                                class="card"
+                                :class="{
+                                    'locked': card.isLocked,
+                                    'obstacle': card.isObstacle,
+                                    'matched': card.matched,
+                                    'selected': card.selected,
+                                    'hint-animation': card.isHinted,
+                                    'refreshing': card.isRefreshing
+                                }"
+                                :style="{
+                                    left: card.x + 'px',
+                                    top: card.y + 'px',
+                                    zIndex: card.layer + 1
+                                }"
+                                  @click="handleCardClick(card)"
+                              >
+                                  {{ card.type }}
+                              </div>
+                        </div>
+                        
+                        <div class="card-slot" :class="{ 'slot-full': isSlotFull, 'slot-clearing': isSlotClearing }">
+                            <div
+                                v-for="(card, index) in gameState.slots"
+                                :key="'slot-' + index"
+                                class="slot-card"
+                                @click="handleRemoveFromSlot(index)"
+                            >
+                                {{ card.type }}
+                            </div>
+                        </div>
+                        
+                        <div class="controls">
+                            <button @click="handleRestart">重新开始</button>
+                            <button class="secondary" @click="handleHint" :disabled="gameState.isProcessing">提示</button>
+                            <button class="secondary" @click="handleRefresh" :disabled="gameState.refreshCount <= 0 || gameState.isProcessing">
+                                重排({{ gameState.refreshCount }})
+                            </button>
+                            <button class="secondary" @click="handleRemoveAll" :disabled="gameState.removeCount <= 0 || gameState.slots.length === 0 || gameState.isProcessing">
+                                移除({{ gameState.removeCount }})
+                            </button>
+                        </div>
+                        
+                        <!-- 音乐控制按钮 -->
+                        <button class="music-control-btn" @click="toggleMusic" title="音乐控制">
+                            {{ isMusicPlaying ? '🔊' : '🔇' }}
+                        </button>
+                        
+                        <!-- 最高分显示 -->
+                        <div class="high-score">🏆 单人最高: {{ gameState.personalHighScore }}关</div>
+                        <div class="global-high-score">🌏 全网最高: {{ gameState.globalHighScore }}关</div>
+                        
+                        <!-- 覆盖层 -->
+                        <div v-if="showOverlay" class="overlay"></div>
+                        
+                        <!-- 失败消息 -->
+                        <div v-if="showDefeatMessage" class="message" @click.stop>
+                            <h2>😢 失败</h2>
+                            <p>请重新开始</p>
+                            <button @click="handleRestart">再来一局</button>
+                        </div>
+                        
+                        <!-- 胜利消息 -->
+                        <div v-if="showVictoryMessage" class="message victory" @click.stop>
+                            <h2>🏆 通关成功</h2>
+                            <div class="emoji">{{ victoryEmoji }}</div>
+                            <div class="level-badge">已完成第 {{ gameState.level }} 关</div>
+                            <p v-html="encourageText"></p>
+                            <button @click="handleNextLevel">继续挑战</button>
+                        </div>
+                        
+                        <!-- 新纪录消息 -->
+                        <div v-if="showNewRecord" class="new-record" :style="newRecordStyle">
+                            {{ newRecordMessage }}
+                        </div>
+                        
+                        <!-- 临时消息 -->
+                        <div v-if="tempMessage" class="game-message" :style="{ opacity: tempMessageOpacity }">
+                            {{ tempMessage }}
+                        </div>
+                        
+                        <!-- 游戏规则弹窗 -->
+                        <div v-if="showRules" class="rules-modal" @click="closeRules">
+                            <div class="rules-content" @click.stop>
+                                <h2>🐑 牛了个牛游戏规则 🎮</h2>
+                                <ul>
+                                    <li v-for="(rule, index) in config.gameRules" :key="index">
+                                        {{ rule }}
+                                    </li>
+                                </ul>
+                                <button @click="startGame">开始游戏</button>
+                            </div>
+                        </div>
+                    </div>
+                `
+            })
+
+            app.mount('#app')
+        </script>
+    </body>
 </html>

@@ -10,13 +10,12 @@ class NiuLeGeNiuGame {
             baseLayers: 3,             // 基础层数
             increaseLayersPerLevel: 1, // 每关增加的层数
             baseCardsPerLayer: 12,     // 每层基础卡片数
-            obstacleRate: 0.2,         // 障碍物比例
+
             cardTypes: [
                 '🐑', '🌾', '🌱', '🌼', '🌳', '☀️', 
                 '🌙', '⭐', '💧', '🔥', '🌵', '🍄',
                 '🐔', '🐄', '🥕', '🌽', '🍃', '🌹'
             ],
-            obstacleTypes: ['🪨', '🌑', '⛰️'],
             // 通关鼓励语句库
             encouragements: [
                 "太牛了！这关对你来说简直小菜一碟！",
@@ -796,26 +795,15 @@ class NiuLeGeNiuGame {
                 const x = startX + Math.floor(Math.random() * (layerWidth - cardSize));
                 const y = startY + Math.floor(Math.random() * (layerHeight - cardSize));
                 
-                // 随机生成障碍物（随关卡提升增加比例）
-                const adjustedObstacleRate = Math.min(
-                    this.config.obstacleRate + (this.gameState.level - 1) * 0.03, 
-                    0.4
-                );
-                const isObstacle = Math.random() < adjustedObstacleRate && layer < totalLayers - 1;
-                
                 let cardType;
-                if (isObstacle) {
-                    cardType = this.config.obstacleTypes[Math.floor(Math.random() * this.config.obstacleTypes.length)];
-                } else {
-                    cardType = selectedTypes[typeIndex];
-                    typeCounter++;
-                    if (typeCounter >= 3) {
-                        typeIndex = (typeIndex + 1) % selectedTypes.length;
-                        typeCounter = 0;
-                    }
-                    this.gameState.remainingCards++;
-                    this.gameState.totalCards++;
+                cardType = selectedTypes[typeIndex];
+                typeCounter++;
+                if (typeCounter >= 3) {
+                    typeIndex = (typeIndex + 1) % selectedTypes.length;
+                    typeCounter = 0;
                 }
+                this.gameState.remainingCards++;
+                this.gameState.totalCards++;
                 
                 layerCards.push({
                     id: `card-${layer}-${i}`,
@@ -824,10 +812,7 @@ class NiuLeGeNiuGame {
                     x: x,
                     y: y,
                     matched: false,
-                    isObstacle: isObstacle,
-                    isLocked: layer < totalLayers - 1, // 非顶层卡片默认锁定
-                    clickCount: 0, // 记录点击次数
-                    maxClicks: 1 // 最大点击次数
+                    isLocked: layer < totalLayers - 1 // 非顶层卡片默认锁定
                 });
             }
             
@@ -865,8 +850,7 @@ class NiuLeGeNiuGame {
         cardEl.id = card.id;
         cardEl.className = 'card';
         if (card.isLocked) cardEl.classList.add('locked');
-        if (card.isObstacle) cardEl.classList.add('obstacle');
-        if (card.clickCount >= card.maxClicks) cardEl.classList.add('max-clicks');
+        // 移除maxClicks检查
         cardEl.style.left = `${card.x}px`;
         cardEl.style.top = `${card.y}px`;
         cardEl.style.zIndex = card.layer + 1; // 高层卡片z-index更高
@@ -875,212 +859,19 @@ class NiuLeGeNiuGame {
         cardEl.dataset.layer = card.layer;
         cardEl.dataset.index = this.gameState.layers[card.layer].findIndex(c => c.id === card.id);
         
-        // 添加点击次数显示
-        const clickCountEl = document.createElement('div');
-        clickCountEl.className = 'click-count';
-        clickCountEl.textContent = `${card.clickCount}/${card.maxClicks}`;
-        clickCountEl.style.cssText = `
-            position: absolute;
-            bottom: 2px;
-            right: 2px;
-            font-size: 10px;
-            font-weight: bold;
-            color: rgba(255, 255, 255, 0.8);
-            background: rgba(0, 0, 0, 0.5);
-            padding: 1px 4px;
-            border-radius: 4px;
-        `;
-        cardEl.appendChild(clickCountEl);
+        // 移除点击次数显示
         
         // 非锁定卡片添加点击事件
-        if (!card.isLocked && !card.isObstacle && card.clickCount < card.maxClicks) {
-            cardEl.addEventListener('click', () => this._selectCard(card.layer, parseInt(cardEl.dataset.index)));
+        if (!card.isLocked) {
+            cardEl.addEventListener('click', (e) => {
+                // 传递点击事件对象以获取点击位置
+                this._selectCard(card.layer, parseInt(cardEl.dataset.index), e);
+            });
         }
         
         this.elements.gameArea.appendChild(cardEl);
-        // 添加点击次数相关样式
-        this._addClickCountStyles();
     }
     
-    /**
-     * 添加点击次数相关的CSS样式
-     * @private
-     */
-    _addClickCountStyles() {
-        // 检查样式是否已添加
-        if (document.getElementById('click-count-styles')) return;
-        
-        const style = document.createElement('style');
-        style.id = 'click-count-styles';
-        style.textContent = `
-            .card.max-clicks {
-                opacity: 0.6;
-                cursor: not-allowed;
-            }
-            .card.max-clicks::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: repeating-linear-gradient(
-                    45deg,
-                    transparent,
-                    transparent 5px,
-                    rgba(255, 0, 0, 0.2) 5px,
-                    rgba(255, 0, 0, 0.2) 10px
-                );
-                pointer-events: none;
-                border-radius: 5px;
-            }
-            .card.clicked-once {
-                border: 2px solid orange;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    /**
-     * 更新卡片点击次数显示
-     * @param {Object} card - 卡片数据
-     * @private
-     */
-    _updateCardClickCount(card) {
-        const cardEl = document.getElementById(card.id);
-        if (cardEl) {
-            const clickCountEl = cardEl.querySelector('.click-count');
-            if (clickCountEl) {
-                clickCountEl.textContent = `${card.clickCount}/${card.maxClicks}`;
-            }
-            
-            // 更新卡片样式
-            if (card.clickCount >= card.maxClicks) {
-                cardEl.classList.add('max-clicks');
-                // 移除点击事件
-                const newCardEl = cardEl.cloneNode(true);
-                cardEl.parentNode.replaceChild(newCardEl, cardEl);
-            } else if (card.clickCount === 1) {
-                cardEl.classList.add('clicked-once');
-            }
-        }
-    }
-
-    /**
-     * 更新顶层卡片锁定状态
-     * @private
-     */
-    _updateTopLayerLockStatus() {
-        const totalLayers = this.gameState.layers.length;
-        
-        // 从顶层向下检查
-        for (let layer = totalLayers - 1; layer >= 0; layer--) {
-            const currentLayer = this.gameState.layers[layer];
-            const isTopLayer = layer === totalLayers - 1;
-            
-            currentLayer.forEach((card, index) => {
-                // 顶层卡片或被上层已消除卡片覆盖的卡片解锁
-                if (isTopLayer || this._isCardUncovered(layer, index)) {
-                    card.isLocked = false;
-                    const cardEl = document.getElementById(card.id);
-                    if (cardEl) {
-                        cardEl.classList.remove('locked');
-                        // 如果卡片还可以点击，重新绑定点击事件
-                        if (!card.isObstacle && card.clickCount < card.maxClicks) {
-                            // 先移除所有事件监听器
-                            const newCardEl = cardEl.cloneNode(true);
-                            // 确保保留必要的dataset属性
-                            newCardEl.dataset.type = cardEl.dataset.type;
-                            newCardEl.dataset.layer = cardEl.dataset.layer;
-                            newCardEl.dataset.index = cardEl.dataset.index;
-                            cardEl.parentNode.replaceChild(newCardEl, cardEl);
-                            // 重新添加点击事件
-                            newCardEl.addEventListener('click', () => this._selectCard(card.layer, index));
-                        }
-                    }
-                } else {
-                    card.isLocked = true;
-                    const cardEl = document.getElementById(card.id);
-                    if (cardEl) cardEl.classList.add('locked');
-                }
-            });
-        }
-    }
-
-    /**
-     * 检查卡片是否被上层卡片覆盖
-     * @param {number} layer - 卡片所在层
-     * @param {number} index - 卡片在层中的索引
-     * @returns {boolean} 是否未被覆盖
-     * @private
-     */
-    _isCardUncovered(layer, index) {
-        const card = this.gameState.layers[layer][index];
-        const cardSize = 65;
-        const cardHalf = cardSize / 2;
-        const cardCenterX = card.x + cardHalf;
-        const cardCenterY = card.y + cardHalf;
-        
-        // 检查所有上层是否有未消除的卡片覆盖当前卡片中心
-        for (let upperLayer = layer + 1; upperLayer < this.gameState.layers.length; upperLayer++) {
-            const upperCards = this.gameState.layers[upperLayer];
-            
-            for (const upperCard of upperCards) {
-                if (!upperCard.matched) {
-                    const upperCenterX = upperCard.x + cardHalf;
-                    const upperCenterY = upperCard.y + cardHalf;
-                    const distance = Math.hypot(cardCenterX - upperCenterX, cardCenterY - upperCenterY);
-                    
-                    // 如果距离小于卡片一半，视为被覆盖
-                    if (distance < cardHalf * 0.8) {
-                        return false;
-                    }
-                }
-            }
-        }
-        
-        return true;
-    }
-
-    /**
-     * 选择卡片
-     * @param {number} layer - 卡片所在层
-     * @param {number} index - 卡片在层中的索引
-     * @private
-     */
-    _selectCard(layer, index) {
-        if (this.gameState.isProcessing) return;
-        
-        const card = this.gameState.layers[layer][index];
-        if (card.matched || card.isLocked || card.isObstacle || card.clickCount >= card.maxClicks) return;
-        
-        // 检查卡槽是否已满
-        if (this.gameState.slots.length >= this.config.slots) {
-            this.elements.cardSlot.classList.add('slot-full');
-            setTimeout(() => this.elements.cardSlot.classList.remove('slot-full'), 1000);
-            return;
-        }
-        
-        // 增加点击次数
-        card.clickCount++;
-        
-        // 添加到卡槽
-        this.gameState.slots.push({ ...card, layer, index });
-        
-        // 更新UI
-        const cardEl = document.getElementById(card.id);
-        cardEl.classList.add('selected');
-        
-        // 点击后立即从主界面移除卡片
-        this.elements.gameArea.removeChild(cardEl);
-        
-        this._updateCardClickCount(card);
-        this._updateCardSlot();
-        
-        // 检查是否可以消除
-        this._checkForMatch();
-    }
-
     /**
      * 更新卡槽显示
      * @private
@@ -1315,29 +1106,30 @@ class NiuLeGeNiuGame {
 
     /**
      * 检查是否有未锁定且可点击的卡片
-     * @returns {boolean} 是否有可点击的卡片
-     * @private
-     */
-    _hasUnlockedCards() {
-        // 优化检查逻辑，避免冗余计算
-        const totalLayers = this.gameState.layers.length;
-        
-        for (let layer = 0; layer < totalLayers; layer++) {
-            const currentLayer = this.gameState.layers[layer];
-            
-            for (let index = 0; index < currentLayer.length; index++) {
-                const card = currentLayer[index];
-                // 只有未匹配、非障碍物、可点击且未被覆盖的卡片才视为可点击
-                if (!card.matched && !card.isObstacle && card.clickCount < card.maxClicks) {
-                    // 顶层卡片或被上层已消除卡片覆盖的卡片解锁
-                    if (layer === totalLayers - 1 || this._isCardUncovered(layer, index)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
+             * @returns {boolean} 是否有可点击的卡片
+             * @private
+             */
+     _hasUnlockedCards() {
+         // 优化检查逻辑，避免冗余计算
+         const totalLayers = this.gameState.layers.length;
+         
+         for (let layer = 0; layer < totalLayers; layer++) {
+             const currentLayer = this.gameState.layers[layer];
+             
+             for (let index = 0; index < currentLayer.length; index++) {
+                 const card = currentLayer[index];
+                 // 只有未匹配、非障碍物且未被覆盖的卡片才视为可点击
+                 // 不再检查点击次数限制
+                 if (!card.matched) {
+                     // 顶层卡片或被上层已消除卡片覆盖的卡片解锁
+                     if (layer === totalLayers - 1 || this._isCardUncovered(layer, index)) {
+                         return true;
+                     }
+                 }
+             }
+         }
+         return false;
+     }
     
     /**
      * 显示临时消息（替代alert）
@@ -1445,7 +1237,7 @@ class NiuLeGeNiuGame {
         // 只重排顶层未锁定的卡片
         const topLayerIndex = this.gameState.layers.length - 1;
         const topLayer = this.gameState.layers[topLayerIndex];
-        const unlockedCards = topLayer.filter(card => !card.matched && !card.isLocked && !card.isObstacle);
+        const unlockedCards = topLayer.filter(card => !card.matched && !card.isLocked);
         
         if (unlockedCards.length <= 1) {
             this._showTemporaryMessage('卡片太少，无法重排');
@@ -1530,7 +1322,7 @@ class NiuLeGeNiuGame {
         
         this.gameState.layers.forEach((layer, layerIndex) => {
             layer.forEach((card, cardIndex) => {
-                if (!card.matched && !card.isLocked && !card.isObstacle && card.clickCount < card.maxClicks) {
+                if (!card.matched && !card.isLocked) {
                     allUnlockedCards.push({ ...card, layer: layerIndex, index: cardIndex });
                 }
             });
@@ -1587,10 +1379,60 @@ class NiuLeGeNiuGame {
             this._showTemporaryMessage('没有可匹配的卡片组合，尝试重排或移除卡槽卡片');
         }
     }
-}
 
-// 当DOM加载完成后初始化游戏
-document.addEventListener('DOMContentLoaded', () => {
-    const game = new NiuLeGeNiuGame();
-    game.init();
-});
+    /**
+     * 选择卡片
+     * @param {number} layer - 卡片所在层
+     * @param {number} index - 卡片在层中的索引
+     * @param {Event} event - 点击事件对象
+     * @private
+     */
+    _selectCard(layer, index, event) {
+        if (this.gameState.isProcessing) return;
+        
+        const card = this.gameState.layers[layer][index];
+        if (card.matched || card.isLocked) return;
+        
+        // 获取点击位置信息
+        const cardEl = document.getElementById(card.id);
+        const rect = cardEl.getBoundingClientRect();
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top;
+        
+        // 获取卡片中心点
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        // 计算点击位置到中心点的距离
+        const distanceFromCenter = Math.sqrt(Math.pow(clickX - centerX, 2) + Math.pow(clickY - centerY, 2));
+        
+        // 判断是否将卡片移入卡槽：点击位置靠近中心才移入
+        // 这里设置一个阈值，比如卡片对角线的一半作为阈值
+        const diagonal = Math.sqrt(Math.pow(rect.width, 2) + Math.pow(rect.height, 2)) / 2;
+        const shouldMoveToSlot = distanceFromCenter < diagonal * 0.7; // 70%的区域内点击才会移入卡槽
+        
+        // 如果不需要移入卡槽，则直接返回
+        if (!shouldMoveToSlot) return;
+        
+        // 检查卡槽是否已满
+        if (this.gameState.slots.length >= this.config.slots) {
+            this.elements.cardSlot.classList.add('slot-full');
+            setTimeout(() => this.elements.cardSlot.classList.remove('slot-full'), 1000);
+            return;
+        }
+        
+        // 添加到卡槽
+        this.gameState.slots.push({ ...card, layer, index });
+        
+        // 更新UI
+        cardEl.classList.add('selected');
+        
+        // 点击后立即从主界面移除卡片
+        this.elements.gameArea.removeChild(cardEl);
+        
+        this._updateCardSlot();
+        
+        // 检查是否可以消除
+        this._checkForMatch();
+    }
+}
